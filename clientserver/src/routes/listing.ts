@@ -62,6 +62,40 @@ router.post("/", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: "Failed to create listing" });
   }
+});/** POST /api/listings/bulk  (create many at once) */
+router.post("/bulk", async (req, res) => {
+  try {
+    const items = Array.isArray(req.body) ? req.body : [];
+    if (!items.length) return res.status(400).json({ error: "Expected an array of listings" });
+
+    // Normalize and light-validate each row
+    const docs = items.map((b: any) => ({
+      title: String(b.title),
+      city: String(b.city),
+      district: b.district ?? "",
+      address: b.address ?? "",
+      size_m2: Number(b.size_m2),
+      rooms: Number(b.rooms ?? 1),
+      furnished: Boolean(b.furnished ?? false),
+      rent_cold: Number(b.rent_cold),
+      rent_warm: b.rent_warm != null ? Number(b.rent_warm) : undefined,
+      source: b.source ?? "csv",
+      url: b.url ?? "",
+    }));
+
+    // Basic required fields check
+    for (const d of docs) {
+      if (!d.title || !d.city || isNaN(d.size_m2) || isNaN(d.rent_cold)) {
+        return res.status(400).json({ error: "Each item needs title, city, size_m2, rent_cold" });
+      }
+    }
+
+    const result = await Listing.insertMany(docs, { ordered: false });
+    res.status(201).json({ inserted: result.length });
+  } catch (e: any) {
+    res.status(500).json({ error: "Bulk insert failed" });
+  }
 });
+
 
 module.exports = router;

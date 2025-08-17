@@ -1,4 +1,3 @@
-// client/src/leafletFix.ts
 import L from "leaflet";
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker from "leaflet/dist/images/marker-icon.png";
@@ -13,5 +12,5 @@ const DefaultIcon = L.icon({
   iconSize: [25, 41],
   shadowSize: [41, 41],
 });
-
 L.Marker.prototype.options.icon = DefaultIcon;
+export {};
