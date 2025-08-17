@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import AddListingForm from "./AddListingForm";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import "./leafletFix";
+
 
 interface Listing {
   _id: string;
@@ -12,6 +16,9 @@ interface Listing {
   furnished: boolean;
   rent_cold: number;
   rent_warm?: number;
+  // add optional coords
+  lat?: number;
+  lng?: number;
 }
 
 function App() {
@@ -27,7 +34,13 @@ function App() {
     if (maxRent) params.maxRent = maxRent;
 
     const res = await axios.get(`${import.meta.env.VITE_API_BASE}/api/listings`, { params });
-    setListings(res.data);
+    // mock coordinates for demo (Marburg area)
+    const withCoords = res.data.map((l: Listing, i: number) => ({
+      ...l,
+      lat: 50.807 + Math.random() * 0.02 - 0.01, // random nearby coords
+      lng: 8.77 + Math.random() * 0.02 - 0.01,
+    }));
+    setListings(withCoords);
   };
 
   useEffect(() => {
@@ -81,6 +94,27 @@ function App() {
         >
           Apply Filters
         </button>
+      </div>
+
+      {/* Map View */}
+      <div className="h-96 mb-6">
+        <MapContainer center={[50.807, 8.77]} zoom={13} className="h-full w-full rounded-lg shadow">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {listings.map((listing) =>
+            listing.lat && listing.lng ? (
+              <Marker key={listing._id} position={[listing.lat, listing.lng]}>
+                <Popup>
+                  <strong>{listing.title}</strong> <br />
+                  {listing.city} {listing.district && `(${listing.district})`} <br />
+                  💶 {listing.rent_cold} €
+                </Popup>
+              </Marker>
+            ) : null
+          )}
+        </MapContainer>
       </div>
 
       {/* Results */}
