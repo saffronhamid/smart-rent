@@ -96,6 +96,22 @@ router.post("/bulk", async (req, res) => {
     res.status(500).json({ error: "Bulk insert failed" });
   }
 });
+/** DELETE /api/listings/:id  (delete one listing) */
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const deleted = await Listing.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    res.json({ message: "Listing deleted successfully", id });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to delete listing" });
+  }
+});
+
 
 
 module.exports = router;

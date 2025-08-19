@@ -38,7 +38,6 @@ function App() {
 
     const res = await axios.get(`${import.meta.env.VITE_API_BASE}/api/listings`, { params });
 
-    // TEMP coords so markers can render if map is shown
     const withCoords = (res.data as Listing[]).map((l) => ({
       ...l,
       lat: 50.807 + Math.random() * 0.02 - 0.01,
@@ -50,10 +49,18 @@ function App() {
 
   useEffect(() => {
     fetchListings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Derived stats
+  const deleteListing = async (id: string) => {
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE}/api/listings/${id}`);
+      fetchListings(); // Refresh list
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      alert("Failed to delete listing");
+    }
+  };
+
   const total = listings.length;
   const avgRent =
     total > 0
@@ -69,15 +76,9 @@ function App() {
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {/* CSV Import */}
-        <div>
-          <CsvImport onImported={fetchListings} />
-        </div>
-
-        {/* Add Listing Form */}
-        <div>
-          <AddListingForm onCreated={fetchListings} />
-        </div>
+        {/* CSV Import + Add Form */}
+        <CsvImport onImported={fetchListings} />
+        <AddListingForm onCreated={fetchListings} />
 
         {/* Filter Bar */}
         <div className="bg-white rounded-xl shadow p-4 flex flex-wrap gap-3 items-end">
@@ -155,7 +156,7 @@ function App() {
           </div>
         </div>
 
-        {/* Map View (optional) */}
+        {/* Map View */}
         {showMap && (
           <div>
             <MapContainer
@@ -185,7 +186,7 @@ function App() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Listing Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {listings.map((l) => (
             <div key={l._id} className="bg-white rounded-xl shadow-md p-4">
@@ -198,6 +199,13 @@ function App() {
               <p>💶 Cold Rent: {l.rent_cold} €</p>
               {l.rent_warm && <p>🔥 Warm Rent: {l.rent_warm} €</p>}
               <p>{l.furnished ? "🪑 Furnished" : "🚪 Unfurnished"}</p>
+
+              <button
+                onClick={() => deleteListing(l._id)}
+                className="mt-3 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>
