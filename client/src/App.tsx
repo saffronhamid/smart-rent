@@ -3,8 +3,10 @@ import axios from "axios";
 import AddListingForm from "./AddListingForm";
 import CsvImport from "./CsvImport";
 import Header from "./Header";
+import { motion } from "framer-motion"; // ✅ Added for animation
 
-// Map (kept behind a toggle)
+
+// Map
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leafletFix";
@@ -30,6 +32,9 @@ function App() {
   const [maxRent, setMaxRent] = useState<string>("");
   const [showMap, setShowMap] = useState(false);
 
+  // 🆕 Role state for user type: "user" or "landlord"
+  const [role, setRole] = useState<"user" | "landlord">("user");
+
   const fetchListings = async () => {
     const params: Record<string, string> = {};
     if (city) params.city = city;
@@ -47,40 +52,61 @@ function App() {
     setListings(withCoords);
   };
 
-  useEffect(() => {
-    fetchListings();
-  }, []);
-
-  const deleteListing = async (id: string) => {
+  const handleDelete = async (id: string) => {
     try {
       await axios.delete(`${import.meta.env.VITE_API_BASE}/api/listings/${id}`);
-      fetchListings(); // Refresh list
-    } catch (error) {
-      console.error("Error deleting listing:", error);
+      fetchListings();
+    } catch (err) {
+      console.error("Failed to delete listing", err);
       alert("Failed to delete listing");
     }
   };
 
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
   const total = listings.length;
-  const avgRent =
-    total > 0
-      ? (listings.reduce((s, l) => s + (Number(l.rent_cold) || 0), 0) / total).toFixed(0)
-      : "-";
-  const avgSize =
-    total > 0
-      ? (listings.reduce((s, l) => s + (Number(l.size_m2) || 0), 0) / total).toFixed(0)
-      : "-";
+  const avgRent = total > 0
+    ? (listings.reduce((s, l) => s + (Number(l.rent_cold) || 0), 0) / total).toFixed(0)
+    : "-";
+
+  const avgSize = total > 0
+    ? (listings.reduce((s, l) => s + (Number(l.size_m2) || 0), 0) / total).toFixed(0)
+    : "-";
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        {/* CSV Import + Add Form */}
-        <CsvImport onImported={fetchListings} />
-        <AddListingForm onCreated={fetchListings} />
+      <motion.main // ✅ Animate main content fade-in
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="mx-auto max-w-6xl px-4 py-6 space-y-6"
+      >
+        {/* 🔐 Simulated Role Dropdown */}
+        <div className="flex justify-end items-center gap-2 mb-4">
+          <label className="text-gray-600 font-medium">Logged in as:</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as "user" | "landlord")}
+            className="border rounded px-3 py-1"
+          >
+            <option value="user">User</option>
+            <option value="landlord">Landlord</option>
+          </select>
+        </div>
 
-        {/* Filter Bar */}
+        {/* 🧑‍💼 Visible only for Landlords */}
+        {role === "landlord" && (
+          <>
+            <CsvImport onImported={fetchListings} />
+            <AddListingForm onCreated={fetchListings} />
+          </>
+        )}
+
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow p-4 flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-sm text-gray-600">City</label>
@@ -119,7 +145,7 @@ function App() {
           </button>
         </div>
 
-        {/* Stats + Sorting */}
+        {/* Stats */}
         <div className="bg-white rounded-xl shadow p-4 flex flex-wrap gap-6 items-center">
           <div>
             <p className="text-gray-600">Total Listings</p>
@@ -133,7 +159,6 @@ function App() {
             <p className="text-gray-600">Avg Size (m²)</p>
             <p className="font-bold">{avgSize}</p>
           </div>
-
           <div className="ml-auto flex gap-2">
             <button
               onClick={() => setListings([...listings].sort((a, b) => a.rent_cold - b.rent_cold))}
@@ -156,40 +181,40 @@ function App() {
           </div>
         </div>
 
-        {/* Map View */}
+        {/* Map */}
         {showMap && (
-          <div>
-            <MapContainer
-              center={[50.807, 8.77]}
-              zoom={13}
-              style={{ height: "400px", width: "100%" }}
-            >
-              <TileLayer
-                attribution="&copy; OpenStreetMap contributors"
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {listings.map(
-                (l) =>
-                  l.lat &&
-                  l.lng && (
-                    <Marker key={l._id} position={[l.lat, l.lng]}>
-                      <Popup>
-                        <strong>{l.title}</strong>
-                        <br />
-                        {l.city} {l.district && `(${l.district})`}
-                        <br />💶 {l.rent_cold} €
-                      </Popup>
-                    </Marker>
-                  )
-              )}
-            </MapContainer>
-          </div>
+          <MapContainer center={[50.807, 8.77]} zoom={13} style={{ height: "400px", width: "100%" }}>
+            <TileLayer
+              attribution="&copy; OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {listings.map(
+              (l) =>
+                l.lat &&
+                l.lng && (
+                  <Marker key={l._id} position={[l.lat, l.lng]}>
+                    <Popup>
+                      <strong>{l.title}</strong>
+                      <br />
+                      {l.city} {l.district && `(${l.district})`}
+                      <br />💶 {l.rent_cold} €
+                    </Popup>
+                  </Marker>
+                )
+            )}
+          </MapContainer>
         )}
 
-        {/* Listing Cards */}
+        {/* Listings Grid with animation */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {listings.map((l) => (
-            <div key={l._id} className="bg-white rounded-xl shadow-md p-4">
+            <motion.div
+              key={l._id}
+              className="bg-white rounded-xl shadow-md p-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
               <h2 className="text-xl font-semibold">{l.title}</h2>
               <p className="text-gray-600">
                 {l.city}
@@ -200,16 +225,19 @@ function App() {
               {l.rent_warm && <p>🔥 Warm Rent: {l.rent_warm} €</p>}
               <p>{l.furnished ? "🪑 Furnished" : "🚪 Unfurnished"}</p>
 
-              <button
-                onClick={() => deleteListing(l._id)}
-                className="mt-3 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-              >
-                Delete
-              </button>
-            </div>
+              {/* Delete button only visible to landlords */}
+              {role === "landlord" && (
+                <button
+                  onClick={() => handleDelete(l._id)}
+                  className="mt-3 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
+              )}
+            </motion.div>
           ))}
         </div>
-      </main>
+      </motion.main>
     </div>
   );
 }

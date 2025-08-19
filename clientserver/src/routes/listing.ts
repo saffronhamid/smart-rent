@@ -1,9 +1,15 @@
 import { Router } from "express";
 import Listing from "../models/listing";
 
+// 🛡️ Import JWT auth middleware
+import { authenticateToken, requireLandlord } from "../middleware/authMiddleware";
+
 const router = Router();
 
-/** GET /api/listings  (with optional filters) */
+/**
+ * GET /api/listings  🔓 Public
+ * Optional filters (city, rent range, size range, furnished, keyword search)
+ */
 router.get("/", async (req, res) => {
   try {
     const {
@@ -24,8 +30,7 @@ router.get("/", async (req, res) => {
     if (minSize || maxSize) filter.size_m2 = {};
     if (minSize) filter.size_m2.$gte = Number(minSize);
     if (maxSize) filter.size_m2.$lte = Number(maxSize);
-    if (typeof furnished !== "undefined")
-      filter.furnished = furnished === "true";
+    if (typeof furnished !== "undefined") filter.furnished = furnished === "true";
     if (q) filter.title = { $regex: q, $options: "i" };
 
     const items = await Listing.find(filter).sort({ createdAt: -1 }).limit(100);
@@ -35,11 +40,14 @@ router.get("/", async (req, res) => {
   }
 });
 
-/** POST /api/listings  (create one) */
-router.post("/", async (req, res) => {
+/**
+ * POST /api/listings  🔐 Protected (Landlords only)
+ * Add a single new listing
+ */
+router.post("/", authenticateToken, requireLandlord, async (req, res) => {
   try {
     const body = req.body || {};
-    // very light checks
+
     if (!body.title || !body.city || body.size_m2 == null || body.rent_cold == null) {
       return res.status(400).json({ error: "title, city, size_m2, rent_cold are required" });
     }
@@ -62,13 +70,17 @@ router.post("/", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: "Failed to create listing" });
   }
-});/** POST /api/listings/bulk  (create many at once) */
-router.post("/bulk", async (req, res) => {
+});
+
+/**
+ * POST /api/listings/bulk  🔐 Protected (Landlords only)
+ * Import listings in bulk (CSV)
+ */
+router.post("/bulk", authenticateToken, requireLandlord, async (req, res) => {
   try {
     const items = Array.isArray(req.body) ? req.body : [];
     if (!items.length) return res.status(400).json({ error: "Expected an array of listings" });
 
-    // Normalize and light-validate each row
     const docs = items.map((b: any) => ({
       title: String(b.title),
       city: String(b.city),
@@ -83,7 +95,6 @@ router.post("/bulk", async (req, res) => {
       url: b.url ?? "",
     }));
 
-    // Basic required fields check
     for (const d of docs) {
       if (!d.title || !d.city || isNaN(d.size_m2) || isNaN(d.rent_cold)) {
         return res.status(400).json({ error: "Each item needs title, city, size_m2, rent_cold" });
@@ -96,8 +107,12 @@ router.post("/bulk", async (req, res) => {
     res.status(500).json({ error: "Bulk insert failed" });
   }
 });
-/** DELETE /api/listings/:id  (delete one listing) */
-router.delete("/:id", async (req, res) => {
+
+/**
+ * DELETE /api/listings/:id  🔐 Protected (Landlords only)
+ * Delete a listing by ID
+ */
+router.delete("/:id", authenticateToken, requireLandlord, async (req, res) => {
   try {
     const id = req.params.id;
     const deleted = await Listing.findByIdAndDelete(id);
@@ -111,7 +126,5 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete listing" });
   }
 });
-
-
 
 module.exports = router;
