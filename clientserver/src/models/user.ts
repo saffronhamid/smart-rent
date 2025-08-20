@@ -1,25 +1,40 @@
-import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+// backend/routes/users.ts or wherever your user routes are
+import express from "express";
+import upload from "../utils/multerConfig";
+import User from "../models/User";
+import authMiddleware from "../middleware/auth"; // Assumes JWT middleware
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["user", "landlord"], default: "user" },
-});
+const router = express.Router();
 
-// Password hash middleware
-userSchema.pre("save", async function (next) {
-  const user = this as any;
-  if (!user.isModified("password")) return next();
-  const hash = await bcrypt.hash(user.password, 10);
-  user.password = hash;
-  next();
-});
+// Upload verification docs
+router.post(
+  "/upload-documents",
+  authMiddleware,
+  upload.array("documents", 5), // max 5 files
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
 
-// Compare password method
-userSchema.methods.comparePassword = function (candidatePassword: string) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-export default mongoose.model("User", userSchema);
+      if (user.role !== "landlord") {
+        return res.status(403).json({ message: "Only landlords can upload documents" });
+      }
+
+      const uploadedFiles = req.files as Express.Multer.File[];
+      const filePaths = uploadedFiles.map((f) => f.path);
+
+      user.documents.push(...filePaths);
+      user.isVerified = false; // Always false until manually approved
+      await user.save();
+
+      res.json({ message: "Documents uploaded", files: filePaths });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Upload failed" });
+    }
+  }
+);
+
+export default router;

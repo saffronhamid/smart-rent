@@ -1,15 +1,52 @@
-export default function Header() {
+import { Link, useNavigate } from "react-router-dom";
+
+function Header() {
+  const navigate = useNavigate();
+  const user = localStorage.getItem("user");
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
-        <span className="text-2xl">🏠</span>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-          Smart Rent
-        </h1>
-        <span className="ml-auto text-sm text-gray-500 hidden sm:block">
-          Find flats faster in Germany
-        </span>
+    <header className="bg-white shadow">
+      <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+        <Link to="/" className="text-xl font-bold text-blue-600">
+          SmartRent 🏡
+        </Link>
+
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <span className="text-gray-700">Welcome, {user}!</span>
+              <button
+                onClick={handleLogout}
+                className="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
 }
+
+export default Header;
